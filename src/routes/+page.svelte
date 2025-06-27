@@ -1,0 +1,202 @@
+<script lang="ts">
+	import { X, Search, Network, MonitorSmartphone, Plus, CirclePlus, Info, Theater } from 'lucide-svelte';
+	import { onMount } from 'svelte';
+	import type {
+		Sector,
+		IoTDevice,
+		ThreatLevel,
+		ThreatInfoCategory,
+		ThreatDetail,
+		Threat
+	} from '$lib/types/models';
+	import type { Sector_UI, IoTDevice_UI } from '$lib/types/UI_models';
+
+	// Base data from API
+	let sectors_data: Sector[] = [];
+	let iot_data: IoTDevice[] = [];
+	let threatLevels: ThreatLevel[] = [];
+	let threatInfoCategories: ThreatInfoCategory[] = [];
+	let threatDetails: ThreatDetail[] = [];
+	let threats: Threat[] = [];
+	let selectedDevice: IoTDevice_UI | null = null;
+
+	// UI-enhanced data
+	let sector_badges_UI: Sector_UI[] = [];
+	let IoTDevices_UI: IoTDevice_UI[] = [];
+
+	onMount(async () => {
+		const sector_response = await fetch('http://127.0.0.1:8000/api/sectors/');
+		sectors_data = await sector_response.json();
+		sector_badges_UI = sectors_data.map((sector) => ({ ...sector, selected: false }));
+		console.log(sector_badges_UI);
+
+		const iot_response = await fetch('http://127.0.0.1:8000/api/iot-devices/');
+		iot_data = await iot_response.json();
+		IoTDevices_UI = iot_data.map((device) => ({
+			...device, // Spread all properties from the original device
+			isActive: false,
+			isHovering: false
+		}));
+		console.log(IoTDevices_UI);
+
+        const threats_response = await fetch('http://127.0.0.1:8000/api/devices/'+ IoTDevices_UI[setActiveDevice.id].id +'/threats/');
+        threats = await threats_response.json();
+        console.log(threats);
+
+	});
+
+	// Toggle badge style when clicked
+	function toggleBadge(index: number) {
+		sector_badges_UI[index].selected = !sector_badges_UI[index].selected;
+		sector_badges_UI = [...sector_badges_UI]; // Trigger reactivity
+	}
+	function setActiveDevice(index: number) {
+		// Update active state for all devices
+		IoTDevices_UI = IoTDevices_UI.map((device, i) => ({
+			...device,
+			isActive: i === index
+		}));
+
+		// Store the selected device
+		selectedDevice = IoTDevices_UI[index];
+	}
+
+	function deleteDevice(index: number) {
+		// Handle clearing the selectedDevice if it's being deleted
+		if (selectedDevice && selectedDevice.id === IoTDevices_UI[index].id) {
+			selectedDevice = null;
+		}
+
+		IoTDevices_UI = IoTDevices_UI.filter((_, i) => i !== index);
+	}
+</script>
+
+<div class="flex h-screen w-full">
+	<!-- Sidebar Navigation -->
+	<div class="bg-base-200 h-full w-64 min-w-64 overflow-y-auto rounded-tl-lg rounded-bl-lg p-4">
+		<h2 class="mb-4 text-xl font-bold">IoT Devices</h2>
+		<div class="mb-4 flex items-center">
+			<input type="text" placeholder="Search" class="input input-bordered w-full" />
+			<button class="btn btn-primary ml-2"><Search />Search</button>
+		</div>
+		<div class="mb-4 flex flex-col gap-2">
+			<button class="btn btn-block btn-accent -translate-y-0.5"><Network />Scan Now</button>
+			<div class="flex flex-wrap gap-2">
+				{#each sector_badges_UI as sector, i (sector.id)}
+					<div
+						class="badge badge-primary {sector.selected ? '' : 'badge-outline'} cursor-pointer"
+						on:click={() => toggleBadge(i)}
+					>
+						{sector.name}
+						<span class="tooltip z-50" data-tip={sector.description || 'No description'}>
+							<Info />
+						</span>
+					</div>
+				{/each}
+			</div>
+		</div>
+
+		<ul class="menu bg-base-200 rounded-box w-full">
+			{#each IoTDevices_UI as device, i}
+				<li
+					class="group group-[.hover-delete]:text-error w-full cursor-pointer"
+					class:hover-delete={device.isHovering}
+					class:bg-primary-focus={device.isActive}
+					on:click={() => setActiveDevice(i)}
+				>
+					<div class="group-[.hover-delete]:text-error grid-cols-2 p-0">
+						<div class="group-[.hover-delete]:text-error pt-2 pb-2 pl-2">
+							<MonitorSmartphone />
+							{device.name}
+						</div>
+						<div class="flex justify-end pt-2 pr-2 pb-2">
+							<a
+								class="text-base-content/50 group-[.hover-delete]:text-error-content absolute top-2 right-3 text-xs"
+								>{device.IP_Address}</a
+							>
+							<div
+								class="group-[.hover-delete]:text-error cursor-pointer pt-2"
+								on:mouseenter={() => {
+									device.isHovering = true;
+									IoTDevices_UI = [...IoTDevices_UI];
+								}}
+								on:mouseleave={() => {
+									device.isHovering = false;
+									IoTDevices_UI = [...IoTDevices_UI];
+								}}
+								on:click={() => deleteDevice(i)}
+							>
+								<X class="group-[.hover-delete]:text-error" />
+							</div>
+						</div>
+						<div
+							class="text-base-content/50 group-[.hover-delete]:text-error-content absolute right-2 bottom-0.5 flex justify-end text-xs"
+						>
+							{device.Mac_Address}
+						</div>
+					</div>
+				</li>
+			{/each}
+			<button class="btn btn-secondary mt-4"><Plus />Add New IoT Device</button>
+		</ul>
+	</div>
+
+	<!-- Main Content Area -->
+	<div class="bg-base-300 h-full flex-1 overflow-y-auto rounded-tr-lg rounded-br-lg p-4">
+		{#if selectedDevice}
+			<h2 class="mb-4 text-xl font-bold">{selectedDevice.name}</h2>
+
+			<div class="card bg-base-100 mb-4 shadow-xl">
+				<div class="card-body">
+					<h2 class="card-title">Device Information</h2>
+					<div class="grid grid-cols-2 gap-2">
+						<div class="font-semibold">IP Address:</div>
+						<div>{selectedDevice.IP_Address || 'Not available'}</div>
+
+						<div class="font-semibold">MAC Address:</div>
+						<div>{selectedDevice.Mac_Address || 'Not available'}</div>
+
+						<div class="font-semibold">Description:</div>
+						<div>{selectedDevice.description || 'No description available'}</div>
+
+						<div class="font-semibold">Sectors:</div>
+						<div>
+							{#if selectedDevice.sector && selectedDevice.sector.length > 0}
+								<div class="flex flex-wrap gap-1">
+									{#each selectedDevice.sector as sectorId}
+										{#each sectors_data.filter((s) => s.id === sectorId) as matchedSector}
+											<div class="badge badge-outline">{matchedSector.name}</div>
+										{/each}
+									{/each}
+								</div>
+							{:else}
+								No sectors assigned
+							{/if}
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Your existing collapse sections -->
+			<div class="grid gap-1 md:gap-2">
+            {#each threats as threat, i}
+				<div class="bg-base-200 border-base-300 collapse border">
+					<input type="checkbox" />
+					<div class="collapse-title font-semibold">{threat.threat_Level}-{threat.attack_Name}</div>
+					<div class="collapse-content text-sm">
+						{threat.Threat_Detail}
+					</div>
+				</div>
+                {/each}
+			</div>
+		{:else}
+			<div class="flex h-full flex-col items-center justify-center text-center">
+				<MonitorSmartphone size={48} class="text-base-content/30 mb-4" />
+				<h2 class="mb-2 text-xl font-bold">No Device Selected</h2>
+				<p class="text-base-content/70">
+					Select an IoT device from the sidebar to view it's details
+				</p>
+			</div>
+		{/if}
+	</div>
+</div>
