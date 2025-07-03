@@ -42,7 +42,7 @@ export interface ThreatInfoCategory {
  */
 export interface ThreatDetail {
 	id: number;
-	threat_Info_Category: number | null; // ThreatInfoCategory ID
+	threat_info_category: ThreatInfoCategory; // Changed to use the full object
 	ai_summary: string | null;
 	details: string | null;
 }
@@ -57,5 +57,5 @@ export interface Threat {
 	attack_Name: string | null;
 	description: string | null;
 	devices: number[]; // Array of IoTDevice IDs
-	Threat_Detail: number[]; // Array of ThreatDetail IDs
+	threat_details: ThreatDetail[]; // Changed from Threat_Detail to match backend
 }
