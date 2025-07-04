@@ -34,6 +34,54 @@
 	let sector_badges_UI: Sector_UI[] = [];
 	let IoTDevices_UI: IoTDevice_UI[] = [];
 
+	// New device form state
+	let newDevice = {
+		name: '',
+		IP_Address: '',
+		Mac_Address: '',
+		description: '',
+		sector: [] as number[]
+	};
+
+	function handleSectorChange(event: Event, sectorId: number) {
+		const target = event.target as HTMLInputElement;
+		if (target.checked) {
+			newDevice.sector = [...newDevice.sector, sectorId];
+		} else {
+			newDevice.sector = newDevice.sector.filter((id) => id !== sectorId);
+		}
+	}
+
+	function addNewDevice(event: Event) {
+		event.preventDefault();
+
+		// Create new device with UI properties
+		const device = {
+			...newDevice,
+			id: Date.now(), // Temporary ID until saved to backend
+			isActive: false,
+			isHovering: false
+		};
+
+		// Add to devices array
+		IoTDevices_UI = [...IoTDevices_UI, device];
+
+		// Reset form
+		newDevice = {
+			name: '',
+			IP_Address: '',
+			Mac_Address: '',
+			description: '',
+			sector: []
+		};
+
+		// Close modal
+		document.getElementById('add_device_modal')?.close();
+
+		// TODO: Send to backend API
+		console.log('New device added:', device);
+	}
+
 	onMount(async () => {
 		const sector_response = await fetch('http://127.0.0.1:8000/api/sectors/');
 		sectors_data = await sector_response.json();
@@ -153,8 +201,6 @@
 			}
 		}
 	}
-	async function sector_filter() {}
-
 	function deleteDevice(index: number) {
 		// Handle clearing the selectedDevice if it's being deleted
 		if (selectedDevice && selectedDevice.id === IoTDevices_UI[index].id) {
@@ -168,7 +214,7 @@
 <div class="flex h-screen w-full">
 	<!-- Sidebar Navigation -->
 	<div
-		class="bg-base-200 z-index: 500 position: static h-full w-64 min-w-64 overflow-y-auto rounded-tl-lg rounded-bl-lg p-4"
+		class="bg-base-200 flex h-full w-64 flex-col overflow-x-hidden overflow-y-auto rounded-tl-lg rounded-bl-lg p-4"
 	>
 		<h2 class="mb-4 text-xl font-bold">IoT Devices</h2>
 		<div class="mb-4 flex items-center">
@@ -180,7 +226,7 @@
 			<div class="flex flex-wrap gap-2">
 				{#each sector_badges_UI as sector, i (sector.id)}
 					<div
-						class="badge badge-primary badge-lg {sector.selected
+						class="badge badge-primary {sector.selected
 							? ''
 							: 'badge-outline'} tooltip h-auto text-wrap"
 						data-tip={sector.description || 'No description'}
@@ -212,50 +258,69 @@
 				</button>
 			{/if}
 		</div>
+		<div class="mb-2 flex w-full justify-center text-center">
+			{#if IoTDevices_UI.length === 0}
+				<label class="text-base-content/50">No devices found</label>
+			{/if}
+			{#if IoTDevices_UI.length > 0}
+				<label class="text-base-content/50">Click to select a device</label>
+			{/if}
+		</div>
+		<div class="flex min-h-[150px] flex-1 flex-col overflow-hidden">
+			<ul class="menu bg-base-200 rounded-box grid h-full w-full overflow-x-hidden overflow-y-auto">
+				<!-- overflow-x-hidden -->
 
-		<ul class="menu bg-base-200 rounded-box w-full">
-			{#each IoTDevices_UI as device, i}
-				<li
-					class="group group-[.hover-delete]:text-error w-full cursor-pointer"
-					class:hover-delete={device.isHovering}
-					class:bg-primary-focus={device.isActive}
-					on:click={() => setActiveDevice(i)}
-				>
-					<div class="group-[.hover-delete]:text-error grid-cols-2 p-0">
-						<div class="group-[.hover-delete]:text-error pt-2 pb-2 pl-2">
-							<MonitorSmartphone />
-							{device.name}
-						</div>
-						<div class="flex justify-end pt-2 pr-2 pb-2">
-							<a
-								class="text-base-content/50 group-[.hover-delete]:text-error-content absolute top-2 right-3 text-xs"
-								>{device.IP_Address}</a
-							>
+				{#each IoTDevices_UI as device, i}
+					<li
+						class="group group-[.hover-delete]:text-error w-full cursor-pointer"
+						class:hover-delete={device.isHovering}
+						class:bg-primary-focus={device.isActive}
+						on:click={() => setActiveDevice(i)}
+					>
+						<div class="group-[.hover-delete]:text-error grid-cols-2 p-0">
+							<div class="group-[.hover-delete]:text-error pt-2 pb-2 pl-2">
+								<MonitorSmartphone />
+								{device.name}
+							</div>
+							<div class="flex justify-end pt-2 pr-2 pb-2">
+								<a
+									class="text-base-content/50 group-[.hover-delete]:text-error-content absolute top-2 right-3 text-xs"
+									>{device.IP_Address}</a
+								>
+								<div
+									class="group-[.hover-delete]:text-error cursor-pointer pt-2"
+									on:mouseenter={() => {
+										device.isHovering = true;
+										IoTDevices_UI = [...IoTDevices_UI];
+									}}
+									on:mouseleave={() => {
+										device.isHovering = false;
+										IoTDevices_UI = [...IoTDevices_UI];
+									}}
+									on:click={() => deleteDevice(i)}
+								>
+									<X class="group-[.hover-delete]:text-error" />
+								</div>
+							</div>
 							<div
-								class="group-[.hover-delete]:text-error cursor-pointer pt-2"
-								on:mouseenter={() => {
-									device.isHovering = true;
-									IoTDevices_UI = [...IoTDevices_UI];
-								}}
-								on:mouseleave={() => {
-									device.isHovering = false;
-									IoTDevices_UI = [...IoTDevices_UI];
-								}}
-								on:click={() => deleteDevice(i)}
+								class="text-base-content/50 group-[.hover-delete]:text-error-content absolute right-2 bottom-0.5 flex justify-end text-xs"
 							>
-								<X class="group-[.hover-delete]:text-error" />
+								{device.Mac_Address}
 							</div>
 						</div>
-						<div
-							class="text-base-content/50 group-[.hover-delete]:text-error-content absolute right-2 bottom-0.5 flex justify-end text-xs"
-						>
-							{device.Mac_Address}
-						</div>
-					</div>
-				</li>
-			{/each}
-			<button class="btn btn-secondary mt-4"><Plus />Add New IoT Device</button>
-		</ul>
+					</li>
+				{/each}
+			</ul>
+		</div>
+		<!-- </div> -->
+		<div class="mt-4">
+			<button
+				class="btn btn-secondary w-full"
+				on:click={() => document.getElementById('add_device_modal').showModal()}
+			>
+				<Plus />Add New IoT Device
+			</button>
+		</div>
 	</div>
 
 	<!-- Main Content Area -->
@@ -328,3 +393,93 @@
 		{/if}
 	</div>
 </div>
+
+<!-- Add Device Modal -->
+<dialog id="add_device_modal" class="modal">
+	<div class="modal-box">
+		<form method="dialog">
+			<button class="btn btn-sm btn-circle btn-ghost absolute top-2 right-2">✕</button>
+		</form>
+		<h3 class="text-lg font-bold">Add New IoT Device</h3>
+
+		<form class="space-y-4 py-4" on:submit|preventDefault={addNewDevice}>
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Device Name</span>
+				</label>
+				<input
+					type="text"
+					id="device_name"
+					bind:value={newDevice.name}
+					placeholder="Enter device name"
+					class="input input-bordered w-full"
+					required
+				/>
+			</div>
+
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">IP Address</span>
+				</label>
+				<input
+					type="text"
+					bind:value={newDevice.IP_Address}
+					placeholder="192.168.1.1"
+					class="input input-bordered w-full"
+					required
+				/>
+			</div>
+
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">MAC Address</span>
+				</label>
+				<input
+					type="text"
+					bind:value={newDevice.Mac_Address}
+					placeholder="00:00:00:00:00:00"
+					class="input input-bordered w-full"
+					required
+				/>
+			</div>
+
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Description</span>
+				</label>
+				<textarea
+					bind:value={newDevice.description}
+					class="textarea textarea-bordered h-24"
+					placeholder="Device description"
+				></textarea>
+			</div>
+
+			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Sectors</span>
+				</label>
+				<div class="flex flex-wrap gap-2">
+					{#each sector_badges_UI as sector}
+						<label class="label cursor-pointer">
+							<input
+								type="checkbox"
+								class="checkbox checkbox-sm"
+								value={sector.id}
+								on:change={(e) => handleSectorChange(e, sector.id)}
+							/>
+							<span class="label-text ml-2">{sector.name}</span>
+						</label>
+					{/each}
+				</div>
+			</div>
+
+			<div class="modal-action">
+				<button
+					class="btn btn-ghost"
+					on:click={() => document.getElementById('add_device_modal').close()}>Cancel</button
+				>
+				<button type="submit" class="btn btn-primary">Save Device</button>
+			</div>
+		</form>
+	</div>
+</dialog>
