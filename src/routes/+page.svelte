@@ -86,6 +86,7 @@
 		const sector_response = await fetch('http://127.0.0.1:8000/api/sectors/');
 		sectors_data = await sector_response.json();
 		sector_badges_UI = sectors_data.map((sector) => ({ ...sector, selected: false }));
+		sector_badges_UI = sector_badges_UI.sort((a, b) => a.name.localeCompare(b.name));
 		console.log(sector_badges_UI);
 
 		const iot_response = await fetch('http://127.0.0.1:8000/api/iot-devices/');
@@ -95,6 +96,7 @@
 			isActive: false,
 			isHovering: false
 		}));
+		IoTDevices_UI = IoTDevices_UI.sort((a, b) => a.name.localeCompare(b.name));
 		console.log(IoTDevices_UI);
 	});
 
@@ -209,6 +211,20 @@
 
 		IoTDevices_UI = IoTDevices_UI.filter((_, i) => i !== index);
 	}
+	function getThreatLevelClass(threatLevel: ThreatLevel | null): string {
+    switch (threatLevel) {
+        case 'Low':
+            return 'bg-success';
+        case 'Medium':
+            return 'bg-warning';
+        case 'High':
+            return 'bg-error';
+        case 'Critical':
+            return 'bg-error text-error-content font-bold';
+        default:
+            return 'bg-base-200';
+    }
+}
 </script>
 
 <div class="flex h-screen w-full">
@@ -332,15 +348,12 @@
 				<div class="card-body">
 					<h2 class="card-title">Device Information</h2>
 					<div class="grid grid-cols-2 gap-2">
-						<div class="font-semibold">IP Address:</div>
-						<div>{selectedDevice.IP_Address || 'Not available'}</div>
-
-						<div class="font-semibold">MAC Address:</div>
-						<div>{selectedDevice.Mac_Address || 'Not available'}</div>
-
 						<div class="font-semibold">Description:</div>
 						<div>{selectedDevice.description || 'No description available'}</div>
-
+						<div class="font-semibold">IP Address:</div>
+						<div>{selectedDevice.IP_Address || 'Not available'}</div>
+						<div class="font-semibold">MAC Address:</div>
+						<div>{selectedDevice.Mac_Address || 'Not available'}</div>
 						<div class="font-semibold">Sectors:</div>
 						<div>
 							{#if selectedDevice.sector && selectedDevice.sector.length > 0}
@@ -364,7 +377,7 @@
 				{#each threats as threat}
 					<div class="bg-base-200 border-base-300 collapse-arrow collapse border">
 						<input type="checkbox" />
-						<div class="collapse-title font-bold">{threat.threat_Level}-{threat.attack_Name}</div>
+<div class="collapse-title {getThreatLevelClass(threat.threat_Level)}"><b>{threat.attack_Name}</b> <i>({threat.threat_Level})</i></div>
 						<div class="collapse-content text-sm">
 							<p class="mb-2">{threat.description || 'No description available'}</p>
 
