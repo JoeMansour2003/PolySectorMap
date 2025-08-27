@@ -45,6 +45,7 @@
 		"@inlang/paraglide-js": "^2.0.0",
 		"@libsql/client": "^0.14.0",
 		"drizzle-orm": "^0.40.0",
-		"lucide-svelte": "^0.506.0"
+		"lucide-svelte": "^0.506.0",
+		"marked": "^16.1.1"
 	}
 }

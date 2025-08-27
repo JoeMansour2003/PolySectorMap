@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { marked } from 'marked';
 	import {
 		X,
 		Search,
@@ -212,19 +213,19 @@
 		IoTDevices_UI = IoTDevices_UI.filter((_, i) => i !== index);
 	}
 	function getThreatLevelClass(threatLevel: ThreatLevel | null): string {
-    switch (threatLevel) {
-        case 'Low':
-            return 'bg-success';
-        case 'Medium':
-            return 'bg-warning';
-        case 'High':
-            return 'bg-error';
-        case 'Critical':
-            return 'bg-error text-error-content font-bold';
-        default:
-            return 'bg-base-200';
-    }
-}
+		switch (threatLevel) {
+			case 'Low':
+				return 'bg-success';
+			case 'Medium':
+				return 'bg-warning';
+			case 'High':
+				return 'bg-error';
+			case 'Critical':
+				return 'bg-error text-error-content font-bold';
+			default:
+				return 'bg-base-200';
+		}
+	}
 </script>
 
 <div class="flex h-screen w-full">
@@ -234,11 +235,11 @@
 	>
 		<h2 class="mb-4 text-xl font-bold">IoT Devices</h2>
 		<div class="mb-4 flex items-center">
-			<input type="text" placeholder="Search" class="input input-bordered w-full" />
-			<button class="btn btn-primary ml-2"><Search />Search</button>
+			<input type="text" placeholder="Search" class="input input-bordered w-full hidden" />
+			<button class="btn btn-primary ml-2 hidden"><Search />Search</button>
 		</div>
 		<div class="mb-4 flex flex-col gap-2">
-			<button class="btn btn-block btn-accent -translate-y-0.5"><Network />Scan Now</button>
+			<button class="btn btn-block btn-accent -translate-y-0.5 hidden"><Network />Scan Now</button>
 			<div class="flex flex-wrap gap-2">
 				{#each sector_badges_UI as sector, i (sector.id)}
 					<div
@@ -377,7 +378,9 @@
 				{#each threats as threat}
 					<div class="bg-base-200 border-base-300 collapse-arrow collapse border">
 						<input type="checkbox" />
-<div class="collapse-title {getThreatLevelClass(threat.threat_Level)}"><b>{threat.attack_Name}</b> <i>({threat.threat_Level})</i></div>
+						<div class="collapse-title {getThreatLevelClass(threat.threat_Level)}">
+							<b>{threat.attack_Name}</b> <i>({threat.threat_Level})</i>
+						</div>
 						<div class="collapse-content text-sm">
 							<p class="mb-2">{threat.description || 'No description available'}</p>
 
@@ -388,7 +391,11 @@
 										{threatDetail.threat_info_category.topic}
 										<i class="text-base-content/50">{threatDetail.ai_summary}</i>
 									</div>
-									<div class="collapse-content">{threatDetail.details}</div>
+									<!-- <textarea class="collapse-content" bind:value={threatDetail.details}/> -->
+									<!-- <div class="collapse-content">{@html marked(threatDetail.details)}</div> -->
+									<div class="collapse-content prose prose-sm max-w-none">
+										{@html marked(threatDetail.details)}
+									</div>
 								</div>
 							{/each}
 						</div>
