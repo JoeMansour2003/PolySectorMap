@@ -235,11 +235,11 @@
 	>
 		<h2 class="mb-4 text-xl font-bold">IoT Devices</h2>
 		<div class="mb-4 flex items-center">
-			<input type="text" placeholder="Search" class="input input-bordered w-full hidden" />
+			<input type="text" placeholder="Search" class="input input-bordered hidden w-full" />
 			<button class="btn btn-primary ml-2 hidden"><Search />Search</button>
 		</div>
 		<div class="mb-4 flex flex-col gap-2">
-			<button class="btn btn-block btn-accent -translate-y-0.5 hidden"><Network />Scan Now</button>
+			<button class="btn btn-block btn-accent hidden -translate-y-0.5"><Network />Scan Now</button>
 			<div class="flex flex-wrap gap-2">
 				{#each sector_badges_UI as sector, i (sector.id)}
 					<div
@@ -436,8 +436,20 @@
 					required
 				/>
 			</div>
-
 			<div class="form-control">
+				<label class="label">
+					<span class="label-text">Description</span>
+				</label>
+				<input
+					type="text"
+					bind:value={newDevice.description}
+					class="input input-bordered w-full"
+					placeholder="Device description"
+					required
+				/>
+			</div>
+
+			<div class="form-control hidden">
 				<label class="label">
 					<span class="label-text">IP Address</span>
 				</label>
@@ -446,11 +458,10 @@
 					bind:value={newDevice.IP_Address}
 					placeholder="192.168.1.1"
 					class="input input-bordered w-full"
-					required
 				/>
 			</div>
 
-			<div class="form-control">
+			<div class="form-control hidden">
 				<label class="label">
 					<span class="label-text">MAC Address</span>
 				</label>
@@ -459,19 +470,7 @@
 					bind:value={newDevice.Mac_Address}
 					placeholder="00:00:00:00:00:00"
 					class="input input-bordered w-full"
-					required
 				/>
-			</div>
-
-			<div class="form-control">
-				<label class="label">
-					<span class="label-text">Description</span>
-				</label>
-				<textarea
-					bind:value={newDevice.description}
-					class="textarea textarea-bordered h-24"
-					placeholder="Device description"
-				></textarea>
 			</div>
 
 			<div class="form-control">
@@ -484,8 +483,11 @@
 							<input
 								type="checkbox"
 								class="checkbox checkbox-sm"
+								name="sectors"
 								value={sector.id}
 								on:change={(e) => handleSectorChange(e, sector.id)}
+								required={newDevice.sector.length === 0}
+								title="Select at least one sector"
 							/>
 							<span class="label-text ml-2">{sector.name}</span>
 						</label>
