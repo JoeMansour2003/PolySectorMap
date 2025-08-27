@@ -35,6 +35,12 @@
 	let loadingMessage = 'Saving device and starting analysis...';
 	let messageTimers: ReturnType<typeof setTimeout>[] = [];
 
+	// Backend API base URL: use VITE_BACKEND_URL injected at build time, fallback to current origin
+	const API_BASE = (
+		(import.meta.env?.VITE_BACKEND_URL as string | undefined) ||
+		(typeof window !== 'undefined' ? window.location.origin : '')
+	).replace(/\/$/, '');
+
 	// Reference to the dialog element
 	let addDeviceDialog: HTMLDialogElement | null = null;
 
@@ -105,7 +111,7 @@
 			sector: newDevice.sector
 		};
 		try {
-			const res = await fetch('http://127.0.0.1:8000/api/iot-devices/', {
+			const res = await fetch(`${API_BASE}/api/iot-devices/`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -134,13 +140,13 @@
 	}
 
 	onMount(async () => {
-		const sector_response = await fetch('http://127.0.0.1:8000/api/sectors/');
+		const sector_response = await fetch(`${API_BASE}/api/sectors/`);
 		sectors_data = await sector_response.json();
 		sector_badges_UI = sectors_data.map((sector) => ({ ...sector, selected: false }));
 		sector_badges_UI = sector_badges_UI.sort((a, b) => a.name.localeCompare(b.name));
 		console.log(sector_badges_UI);
 
-		const iot_response = await fetch('http://127.0.0.1:8000/api/iot-devices/');
+		const iot_response = await fetch(`${API_BASE}/api/iot-devices/`);
 		iot_data = await iot_response.json();
 		IoTDevices_UI = iot_data.map((device) => ({
 			...device, // Spread all properties from the original device
@@ -171,7 +177,7 @@
 			await filterDevicesBySectors();
 		} else {
 			// If no sectors selected, reset to all devices
-			const iot_response = await fetch('http://127.0.0.1:8000/api/iot-devices/');
+			const iot_response = await fetch(`${API_BASE}/api/iot-devices/`);
 			const data = await iot_response.json();
 			IoTDevices_UI = data.map((device) => ({
 				...device,
@@ -182,7 +188,7 @@
 	}
 	async function filterDevicesBySectors() {
 		try {
-			const response = await fetch('http://127.0.0.1:8000/api/sectors/devices/', {
+			const response = await fetch(`${API_BASE}/api/sectors/devices/`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -239,7 +245,7 @@
 		if (selectedDevice) {
 			try {
 				const threats_response = await fetch(
-					`http://127.0.0.1:8000/api/iot-devices/${selectedDevice.id}/threats/`
+					`${API_BASE}/api/iot-devices/${selectedDevice.id}/threats/`
 				);
 				if (threats_response.ok) {
 					threats = await threats_response.json();
@@ -312,7 +318,7 @@
 						current_sector_filter = [];
 
 						// Reset to all devices
-						const iot_response = await fetch('http://127.0.0.1:8000/api/iot-devices/');
+						const iot_response = await fetch(`${API_BASE}/api/iot-devices/`);
 						const data = await iot_response.json();
 						IoTDevices_UI = data.map((device) => ({
 							...device,
@@ -576,11 +582,15 @@
 
 <!-- Global loading overlay -->
 {#if addDeviceLoading}
-    <div class="fixed inset-0 z-[9999] flex items-center justify-center bg-base-300/80 backdrop-blur-sm" aria-live="polite" aria-busy="true">
-        <div class="text-center">
-            <span class="loading loading-spinner text-primary" style="transform: scale(3.5);"></span>
-            <div class="mt-6 text-xl font-semibold">{loadingMessage}</div>
-            <div class="mt-1 text-base-content/70">This may take a minute.</div>
-        </div>
-    </div>
+	<div
+		class="bg-base-300/80 fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-sm"
+		aria-live="polite"
+		aria-busy="true"
+	>
+		<div class="text-center">
+			<span class="loading loading-spinner text-primary" style="transform: scale(3.5);"></span>
+			<div class="mt-6 text-xl font-semibold">{loadingMessage}</div>
+			<div class="text-base-content/70 mt-1">This may take a minute.</div>
+		</div>
+	</div>
 {/if}
