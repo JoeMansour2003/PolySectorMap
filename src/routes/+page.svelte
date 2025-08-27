@@ -93,6 +93,10 @@
 	async function addNewDevice() {
 		addDeviceLoading = true;
 		startLoadingMessages();
+
+		// Close the modal so the overlay is fully visible
+		addDeviceOpen = false;
+
 		const payload = {
 			name: newDevice.name.trim(),
 			description: newDevice.description.trim(),
@@ -110,16 +114,19 @@
 			});
 			if (!res.ok) {
 				console.error('Failed to create device:', await res.text());
-				return; // keep modal open so user can retry/close
+				// Re-open modal so user can fix and retry
+				addDeviceOpen = true;
+				return;
 			}
 			const created: IoTDevice = await res.json();
 			IoTDevices_UI = [...IoTDevices_UI, { ...created, isActive: false, isHovering: false }].sort(
 				(a, b) => a.name.localeCompare(b.name)
 			);
 			newDevice = { name: '', IP_Address: '', Mac_Address: '', description: '', sector: [] };
-			addDeviceOpen = false;
 		} catch (e) {
 			console.error('Error creating device:', e);
+			// Re-open modal on error
+			addDeviceOpen = true;
 		} finally {
 			clearMessageTimers();
 			addDeviceLoading = false;
@@ -166,7 +173,7 @@
 			// If no sectors selected, reset to all devices
 			const iot_response = await fetch('http://127.0.0.1:8000/api/iot-devices/');
 			const data = await iot_response.json();
-			IoTDevices_UI = data.map((device: IoTDevice) => ({
+			IoTDevices_UI = data.map((device) => ({
 				...device,
 				isActive: false,
 				isHovering: false
@@ -569,11 +576,11 @@
 
 <!-- Global loading overlay -->
 {#if addDeviceLoading}
-	<div class="bg-base-300/80 fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
-		<div class="text-center">
-			<span class="loading loading-spinner text-primary" style="transform: scale(3);"></span>
-			<div class="mt-6 text-xl font-semibold" aria-live="polite">{loadingMessage}</div>
-			<div class="text-base-content/70 mt-1">This may take a minute.</div>
-		</div>
-	</div>
+    <div class="fixed inset-0 z-[9999] flex items-center justify-center bg-base-300/80 backdrop-blur-sm" aria-live="polite" aria-busy="true">
+        <div class="text-center">
+            <span class="loading loading-spinner text-primary" style="transform: scale(3.5);"></span>
+            <div class="mt-6 text-xl font-semibold">{loadingMessage}</div>
+            <div class="mt-1 text-base-content/70">This may take a minute.</div>
+        </div>
+    </div>
 {/if}
