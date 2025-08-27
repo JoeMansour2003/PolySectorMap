@@ -10,7 +10,7 @@
 		Info,
 		Theater
 	} from 'lucide-svelte';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import type {
 		Sector,
 		IoTDevice,
@@ -30,6 +30,21 @@
 	let threats: Threat[] = [];
 	let selectedDevice: IoTDevice_UI | null = null;
 	let current_sector_filter: number[] = [];
+	let addDeviceOpen = false;
+	let addDeviceLoading = false;
+	let loadingMessage = 'Saving device and starting analysis...';
+	let messageTimers: ReturnType<typeof setTimeout>[] = [];
+
+	// Reference to the dialog element
+	let addDeviceDialog: HTMLDialogElement | null = null;
+
+	// Open/close the native <dialog> imperatively when state changes
+	$: {
+		if (addDeviceDialog) {
+			if (addDeviceOpen && !addDeviceDialog.open) addDeviceDialog.showModal();
+			if (!addDeviceOpen && addDeviceDialog.open) addDeviceDialog.close();
+		}
+	}
 
 	// UI-enhanced data
 	let sector_badges_UI: Sector_UI[] = [];
@@ -53,34 +68,62 @@
 		}
 	}
 
-	function addNewDevice(event: Event) {
-		event.preventDefault();
+	function startLoadingMessages() {
+		clearMessageTimers();
+		loadingMessage = 'Saving device and starting analysis...';
+		messageTimers.push(
+			setTimeout(() => (loadingMessage = 'Contacting vulnerability databases...'), 3000)
+		);
+		messageTimers.push(
+			setTimeout(() => (loadingMessage = 'Generating threat insights with AI...'), 8000)
+		);
+		messageTimers.push(
+			setTimeout(() => (loadingMessage = 'This is taking longer than expected...'), 15000)
+		);
+		messageTimers.push(
+			setTimeout(() => (loadingMessage = 'Still working... almost there.'), 30000)
+		);
+	}
+	function clearMessageTimers() {
+		messageTimers.forEach(clearTimeout);
+		messageTimers = [];
+	}
+	onDestroy(clearMessageTimers);
 
-		// Create new device with UI properties
-		const device = {
-			...newDevice,
-			id: Date.now(), // Temporary ID until saved to backend
-			isActive: false,
-			isHovering: false
+	async function addNewDevice() {
+		addDeviceLoading = true;
+		startLoadingMessages();
+		const payload = {
+			name: newDevice.name.trim(),
+			description: newDevice.description.trim(),
+			IP_Address: newDevice.IP_Address || null,
+			Mac_Address: newDevice.Mac_Address || null,
+			sector: newDevice.sector
 		};
-
-		// Add to devices array
-		IoTDevices_UI = [...IoTDevices_UI, device];
-
-		// Reset form
-		newDevice = {
-			name: '',
-			IP_Address: '',
-			Mac_Address: '',
-			description: '',
-			sector: []
-		};
-
-		// Close modal
-		document.getElementById('add_device_modal')?.close();
-
-		// TODO: Send to backend API
-		console.log('New device added:', device);
+		try {
+			const res = await fetch('http://127.0.0.1:8000/api/iot-devices/', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(payload)
+			});
+			if (!res.ok) {
+				console.error('Failed to create device:', await res.text());
+				return; // keep modal open so user can retry/close
+			}
+			const created: IoTDevice = await res.json();
+			IoTDevices_UI = [...IoTDevices_UI, { ...created, isActive: false, isHovering: false }].sort(
+				(a, b) => a.name.localeCompare(b.name)
+			);
+			newDevice = { name: '', IP_Address: '', Mac_Address: '', description: '', sector: [] };
+			addDeviceOpen = false;
+		} catch (e) {
+			console.error('Error creating device:', e);
+		} finally {
+			clearMessageTimers();
+			addDeviceLoading = false;
+		}
 	}
 
 	onMount(async () => {
@@ -231,7 +274,7 @@
 <div class="flex h-screen w-full">
 	<!-- Sidebar Navigation -->
 	<div
-		class="bg-base-200 flex h-full w-64 flex-col overflow-x-hidden overflow-y-auto rounded-tl-lg rounded-bl-lg p-4"
+		class="bg-base-200 flex h-full w-64 flex-col overflow-y-auto overflow-x-hidden rounded-bl-lg rounded-tl-lg p-4"
 	>
 		<h2 class="mb-4 text-xl font-bold">IoT Devices</h2>
 		<div class="mb-4 flex items-center">
@@ -284,24 +327,24 @@
 			{/if}
 		</div>
 		<div class="flex min-h-[150px] flex-1 flex-col overflow-hidden">
-			<ul class="menu bg-base-200 rounded-box grid h-full w-full overflow-x-hidden overflow-y-auto">
+			<ul class="menu bg-base-200 rounded-box grid h-full w-full overflow-y-auto overflow-x-hidden">
 				<!-- overflow-x-hidden -->
 
 				{#each IoTDevices_UI as device, i}
 					<li
-						class="group group-[.hover-delete]:text-error w-full cursor-pointer"
+						class="group-[.hover-delete]:text-error group w-full cursor-pointer"
 						class:hover-delete={device.isHovering}
 						class:bg-primary-focus={device.isActive}
 						on:click={() => setActiveDevice(i)}
 					>
 						<div class="group-[.hover-delete]:text-error grid-cols-2 p-0">
-							<div class="group-[.hover-delete]:text-error pt-2 pb-2 pl-2">
+							<div class="group-[.hover-delete]:text-error pb-2 pl-2 pt-2">
 								<MonitorSmartphone />
 								{device.name}
 							</div>
-							<div class="flex justify-end pt-2 pr-2 pb-2">
+							<div class="flex justify-end pb-2 pr-2 pt-2">
 								<a
-									class="text-base-content/50 group-[.hover-delete]:text-error-content absolute top-2 right-3 text-xs"
+									class="text-base-content/50 group-[.hover-delete]:text-error-content absolute right-3 top-2 text-xs"
 									>{device.IP_Address}</a
 								>
 								<div
@@ -320,7 +363,7 @@
 								</div>
 							</div>
 							<div
-								class="text-base-content/50 group-[.hover-delete]:text-error-content absolute right-2 bottom-0.5 flex justify-end text-xs"
+								class="text-base-content/50 group-[.hover-delete]:text-error-content absolute bottom-0.5 right-2 flex justify-end text-xs"
 							>
 								{device.Mac_Address}
 							</div>
@@ -331,17 +374,14 @@
 		</div>
 		<!-- </div> -->
 		<div class="mt-4">
-			<button
-				class="btn btn-secondary w-full"
-				on:click={() => document.getElementById('add_device_modal').showModal()}
-			>
+			<button class="btn btn-secondary w-full" on:click={() => (addDeviceOpen = true)}>
 				<Plus />Add New IoT Device
 			</button>
 		</div>
 	</div>
 
 	<!-- Main Content Area -->
-	<div class="bg-base-300 h-full flex-1 overflow-y-auto rounded-tr-lg rounded-br-lg p-4">
+	<div class="bg-base-300 h-full flex-1 overflow-y-auto rounded-br-lg rounded-tr-lg p-4">
 		{#if selectedDevice}
 			<h2 class="mb-4 text-5xl font-bold">{selectedDevice.name}</h2>
 
@@ -351,10 +391,10 @@
 					<div class="grid grid-cols-2 gap-2">
 						<div class="font-semibold">Description:</div>
 						<div>{selectedDevice.description || 'No description available'}</div>
-						<div class="font-semibold">IP Address:</div>
-						<div>{selectedDevice.IP_Address || 'Not available'}</div>
-						<div class="font-semibold">MAC Address:</div>
-						<div>{selectedDevice.Mac_Address || 'Not available'}</div>
+						<div class="hidden font-semibold">IP Address:</div>
+						<div class="hidden">{selectedDevice.IP_Address || 'Not available'}</div>
+						<div class="hidden font-semibold">MAC Address:</div>
+						<div class="hidden">{selectedDevice.Mac_Address || 'Not available'}</div>
 						<div class="font-semibold">Sectors:</div>
 						<div>
 							{#if selectedDevice.sector && selectedDevice.sector.length > 0}
@@ -415,11 +455,21 @@
 </div>
 
 <!-- Add Device Modal -->
-<dialog id="add_device_modal" class="modal">
+<dialog
+	class="modal"
+	bind:this={addDeviceDialog}
+	on:close={() => (addDeviceOpen = false)}
+	on:cancel={(e) => {
+		e.preventDefault(); // keep modal modal; then sync state
+		addDeviceOpen = false;
+	}}
+>
 	<div class="modal-box">
-		<form method="dialog">
-			<button class="btn btn-sm btn-circle btn-ghost absolute top-2 right-2">✕</button>
-		</form>
+		<button
+			class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+			on:click={() => !addDeviceLoading && (addDeviceOpen = false)}
+			aria-label="Close">✕</button
+		>
 		<h3 class="text-lg font-bold">Add New IoT Device</h3>
 
 		<form class="space-y-4 py-4" on:submit|preventDefault={addNewDevice}>
@@ -429,11 +479,11 @@
 				</label>
 				<input
 					type="text"
-					id="device_name"
 					bind:value={newDevice.name}
 					placeholder="Enter device name"
 					class="input input-bordered w-full"
 					required
+					disabled={addDeviceLoading}
 				/>
 			</div>
 			<div class="form-control">
@@ -446,6 +496,7 @@
 					class="input input-bordered w-full"
 					placeholder="Device description"
 					required
+					disabled={addDeviceLoading}
 				/>
 			</div>
 
@@ -488,6 +539,7 @@
 								on:change={(e) => handleSectorChange(e, sector.id)}
 								required={newDevice.sector.length === 0}
 								title="Select at least one sector"
+								disabled={addDeviceLoading}
 							/>
 							<span class="label-text ml-2">{sector.name}</span>
 						</label>
@@ -498,10 +550,30 @@
 			<div class="modal-action">
 				<button
 					class="btn btn-ghost"
-					on:click={() => document.getElementById('add_device_modal').close()}>Cancel</button
+					type="button"
+					on:click={() => (addDeviceOpen = false)}
+					disabled={addDeviceLoading}
 				>
-				<button type="submit" class="btn btn-primary">Save Device</button>
+					Cancel
+				</button>
+				<button type="submit" class="btn btn-primary" disabled={addDeviceLoading}>
+					{#if addDeviceLoading}
+						<span class="loading loading-spinner loading-sm mr-2"></span>
+					{/if}
+					Save Device
+				</button>
 			</div>
 		</form>
 	</div>
 </dialog>
+
+<!-- Global loading overlay -->
+{#if addDeviceLoading}
+	<div class="bg-base-300/80 fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
+		<div class="text-center">
+			<span class="loading loading-spinner text-primary" style="transform: scale(3);"></span>
+			<div class="mt-6 text-xl font-semibold" aria-live="polite">{loadingMessage}</div>
+			<div class="text-base-content/70 mt-1">This may take a minute.</div>
+		</div>
+	</div>
+{/if}
